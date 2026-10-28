@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # Neo4j
-    neo4j_uri: str = "neo4j://localhost:7688"
+    neo4j_uri: str = "neo4j://localhost:7687"
     neo4j_username: str = "neo4j"
     neo4j_password: str = "password123"
     neo4j_database: str = "neo4j"
