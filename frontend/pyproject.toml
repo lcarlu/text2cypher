@@ -1,0 +1,34 @@
+[project]
+name = "text2cypher-frontend"
+version = "0.1.0"
+description = "Streamlit chatbot for the Text2Cypher API"
+authors = [
+    { name = "Ludovic Carlu", email = "b300orx@groupe.generali.fr" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "neo4j-viz>=1.11.0",
+    "pandas>=3.1.0",
+    "python-dotenv>=1.2.4",
+    "streamlit>=1.66.1",
+]
+
+[project.scripts]
+text2cypher-ui = "text2cypher_frontend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

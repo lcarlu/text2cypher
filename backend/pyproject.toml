@@ -1,0 +1,45 @@
+[project]
+name = "text2cypher-backend"
+version = "0.1.0"
+description = "Text2Cypher API: ask natural language questions to a Neo4j knowledge graph"
+authors = [
+    { name = "Ludovic Carlu", email = "b300orx@groupe.generali.fr" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162.0",
+    "httpx>=0.28.1",
+    "langchain>=1.4.7",
+    "langchain-ollama>=1.1.0",
+    "langchain-openai>=1.7.3",
+    "neo4j>=6.4.1",
+    "pydantic-settings>=2.16.1",
+    "python-dotenv>=1.2.4",
+    "pyyaml>=6.0.3",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+text2cypher-api = "text2cypher_backend.api.main:run"
+text2cypher-load = "text2cypher_backend.loader.cli:main"
+text2cypher-semantic = "text2cypher_backend.semantic.layer:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

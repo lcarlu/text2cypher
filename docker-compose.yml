@@ -1,0 +1,33 @@
+name: text2cypher
+
+services:
+  neo4j:
+    # Neo4j 2025+ (vector indexes, Cypher 25). APOC is used for sampled schema introspection.
+    image: neo4j:latest
+    container_name: text2cypher-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-password123}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      # Sized for a 4GB Docker VM; raise them for the full dataset if you can (e.g. 2G / 2G)
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP:-1G}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-1G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-1G}
+      # Protects the instance from runaway LLM-generated queries
+      NEO4J_db_transaction_timeout: 60s
+    ports:
+      # Shifted ports so it can run next to the neo4j_text2SQL container (7474/7687)
+      - "${NEO4J_HTTP_PORT:-7475}:7474" # Neo4j Browser: http://localhost:7475
+      - "${NEO4J_BOLT_PORT:-7688}:7687" # Bolt: neo4j://localhost:7688
+    volumes:
+      - neo4j_data:/data
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  neo4j_data:
+  neo4j_plugins:
