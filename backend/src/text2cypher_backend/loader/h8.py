@@ -1,6 +1,7 @@
 """Parse the h8 employees PostgreSQL dump (https://github.com/h8/employees-database) without PostgreSQL."""
 
 import bz2
+import hashlib
 import logging
 from collections.abc import Iterator
 from datetime import date
@@ -10,29 +11,64 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-DUMP_URL = "https://raw.githubusercontent.com/h8/employees-database/refs/heads/master/employees_data.sql.bz2"
+# Same file from two sources: the text2cypher release mirror first, then the h8 repository pinned on a commit.
+# The dataset is shared under Creative Commons Attribution-Share Alike 3.0 (see README credits).
+DUMP_URLS = [
+    "https://github.com/lcarlu/text2cypher/releases/download/data-v1/employees_data.sql.bz2",
+    "https://raw.githubusercontent.com/h8/employees-database/2d6007094f93bd887d6e2b8a409967efd75fc587/employees_data.sql.bz2",
+]
+DUMP_SHA256 = "1f76fc853eacbc6730b4b0f83eccb029ccee1f24b441737dbd88d692bd126f6c"
 EMAIL_DOMAIN = "@semantictech.com"
 CURRENT_TO_DATE = date(9999, 1, 1)
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _download(url: str, target: Path) -> None:
+    tmp = target.with_suffix(target.suffix + ".part")
+    with httpx.stream("GET", url, follow_redirects=True, timeout=300) as response:
+        response.raise_for_status()
+        with open(tmp, "wb") as f:
+            for chunk in response.iter_bytes():
+                f.write(chunk)
+    checksum = _sha256(tmp)
+    if checksum != DUMP_SHA256:
+        tmp.unlink()
+        raise ValueError(f"checksum mismatch ({checksum})")
+    tmp.replace(target)
+
+
 def download_dump(cache_dir: Path) -> Path:
-    """Download (once) and decompress the dump in cache_dir. Returns the path of the .sql file."""
+    """Download (once) the dump, check its SHA-256 and decompress it in cache_dir. Returns the .sql path."""
     cache_dir.mkdir(parents=True, exist_ok=True)
     sql_path = cache_dir / "employees_data.sql"
     if sql_path.exists():
         return sql_path
     bz2_path = cache_dir / "employees_data.sql.bz2"
-    if not bz2_path.exists():
-        logger.info("Downloading %s", DUMP_URL)
-        with httpx.stream("GET", DUMP_URL, follow_redirects=True, timeout=300) as response:
-            response.raise_for_status()
-            with open(bz2_path, "wb") as f:
-                for chunk in response.iter_bytes():
-                    f.write(chunk)
+    if not bz2_path.exists() or _sha256(bz2_path) != DUMP_SHA256:
+        errors = []
+        for url in DUMP_URLS:
+            logger.info("Downloading %s", url)
+            try:
+                _download(url, bz2_path)
+                break
+            except (httpx.HTTPError, ValueError) as e:
+                logger.warning("Download failed from %s: %s", url, e)
+                errors.append(f"{url}: {e}")
+        else:
+            raise RuntimeError("Could not download the h8 employees dump:\n" + "\n".join(errors))
     logger.info("Decompressing %s", bz2_path)
-    with bz2.open(bz2_path, "rt", encoding="utf-8") as src, open(sql_path, "w", encoding="utf-8") as dst:
+    tmp = sql_path.with_suffix(".sql.part")
+    with bz2.open(bz2_path, "rt", encoding="utf-8") as src, open(tmp, "w", encoding="utf-8") as dst:
         for line in src:
             dst.write(line)
+    tmp.replace(sql_path)
     return sql_path
 
 

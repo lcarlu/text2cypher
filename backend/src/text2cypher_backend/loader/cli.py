@@ -20,6 +20,7 @@ from text2cypher_backend.loader import h8, synthetic
 logger = logging.getLogger("text2cypher.loader")
 
 BATCH_SIZE = 10_000
+SIZES = {"small": 10_000, "full": None}
 
 CONSTRAINTS = [
     "CREATE CONSTRAINT employee_id IF NOT EXISTS FOR (n:Employee) REQUIRE n.id IS UNIQUE",
@@ -191,9 +192,23 @@ def load(driver: neo4j.Driver, limit: int | None, database: str) -> None:
         write_rows(session, Q_WORKS_ON, works_on, "WORKS_ON")
 
 
+def _ensure_semantic_layer(driver: neo4j.Driver, skip: bool) -> None:
+    """Build the semantic layer if missing (e.g. the first init ran without a valid LLM key)."""
+    from text2cypher_backend.semantic.layer import build_semantic_layer, semantic_layer_exists
+
+    if skip or semantic_layer_exists(driver):
+        return
+    logger.info("Semantic layer missing: building it")
+    build_semantic_layer(driver)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Load the HR dummy knowledge graph in Neo4j")
-    parser.add_argument("--limit", type=int, default=None, help="Only load the first N employees (default: all)")
+    parser.add_argument("--size", choices=SIZES, default="full", help="Dataset size: small (10k employees) or full")
+    parser.add_argument("--limit", type=int, default=None, help="Only load the first N employees (overrides --size)")
+    parser.add_argument(
+        "--if-empty", action="store_true", help="Skip loading when the database already has data (idempotent init)"
+    )
     parser.add_argument("--reset", action="store_true", help="Delete everything in the database before loading")
     parser.add_argument("--yes", action="store_true", help="Do not ask for confirmation with --reset")
     parser.add_argument("--skip-semantic-layer", action="store_true", help="Do not build the semantic layer")
@@ -213,12 +228,16 @@ def main() -> None:
                 if not args.yes and input(f"Delete EVERYTHING in {target}? Type 'yes': ") != "yes":
                     raise SystemExit("Aborted.")
                 reset_database(session)
+            elif node_count and args.if_empty:
+                logger.info("Database already loaded (%s nodes): skipping data load", f"{node_count:,}")
+                _ensure_semantic_layer(driver, args.skip_semantic_layer)
+                return
             elif node_count:
                 raise SystemExit(
                     f"Database '{settings.neo4j_database}' on {settings.neo4j_uri} already has {node_count:,} nodes. "
                     "Use --reset to wipe it first."
                 )
-        load(driver, args.limit, settings.neo4j_database)
+        load(driver, args.limit or SIZES[args.size], settings.neo4j_database)
         if not args.skip_semantic_layer:
             from text2cypher_backend.semantic.layer import build_semantic_layer
 
