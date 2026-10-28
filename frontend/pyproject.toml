@@ -5,6 +5,7 @@ description = "Streamlit chatbot for the Text2Cypher API"
 authors = [
     { name = "Ludovic Carlu", email = "b300orx@groupe.generali.fr" }
 ]
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",

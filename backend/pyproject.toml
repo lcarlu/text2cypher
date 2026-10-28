@@ -5,6 +5,7 @@ description = "Text2Cypher API: ask natural language questions to a Neo4j knowle
 authors = [
     { name = "Ludovic Carlu", email = "b300orx@groupe.generali.fr" }
 ]
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.162.0",
