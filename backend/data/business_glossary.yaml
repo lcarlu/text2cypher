@@ -1,0 +1,65 @@
+# Business glossary (adapted from neo4j_text2SQL data/business_glossary.json).
+# Each term can point to node labels / relationship types and can have sub-terms (taxonomy).
+- term: Employee
+  definition: An individual currently or previously hired by the organization to perform specific roles or duties.
+  labels: [Employee]
+- term: Headcount
+  definition: Number of employees currently working in the company, i.e. having a current department assignment.
+  labels: [Employee]
+  relationships: [WORKS_IN]
+- term: Department
+  definition: A distinct functional unit or division within the organization.
+  labels: [Department]
+- term: Department Assignment
+  definition: The historical and current record of an employee's allocation to a specific functional department including the period during which the assignment is considered active and valid.
+  relationships: [WORKS_IN]
+- term: Department Manager
+  definition: An employee designated with leadership and oversight responsibilities for a specific department within a defined timeframe.
+  relationships: [MANAGES, REPORTS_TO]
+- term: Job Function
+  definition: The formal designation held by an employee, reflecting their professional role and specific field of work.
+  labels: [Title]
+  relationships: [HAS_TITLE]
+- term: Total Rewards
+  definition: This function ensures employees are fairly compensated and feel valued for their work.
+  terms:
+    - term: Compensation
+      definition: The total monetary compensation received by an employee, including base salary, bonuses, and other forms of compensation.
+      terms:
+        - term: Base Salary
+          definition: The fixed amount of monetary compensation paid to an employee for a specific period of their employment.
+          labels: [Salary, SurveyResponse]
+        - term: Bonus
+          definition: A one-time or recurring monetary award given to an employee as a performance incentive or recognition.
+    - term: Benefits
+      definition: Overseeing health insurance, retirement plans, and wellness perks.
+      labels: [SurveyResponse]
+- term: Employee Satisfaction
+  definition: How satisfied employees are with HR topics, measured by the satisfaction survey scores from 1 to 5.
+  labels: [SurveyResponse]
+  relationships: [ANSWERED]
+- term: Hire Date
+  definition: The specific calendar date on which an individual officially began their employment contract with the organization.
+  labels: [Employee]
+- term: Seniority
+  definition: Time elapsed since the hire date of an employee.
+  labels: [Employee]
+- term: Employee Gender
+  definition: The gender identity of the employee as recorded for administrative and legal compliance purposes.
+  labels: [Employee]
+- term: Recruitment
+  definition: Process of attracting and hiring external candidates for open job positions.
+  labels: [Candidate, JobRequisition]
+  relationships: [APPLIED_TO, OPENED_IN]
+- term: Competencies
+  definition: Skills and expertise of the workforce, with a proficiency level.
+  labels: [Skill]
+  relationships: [HAS_SKILL]
+- term: Staffing
+  definition: Allocation of employees on internal projects.
+  labels: [Project]
+  relationships: [WORKS_ON, OWNED_BY]
+- term: Workplace
+  definition: Office location and city where employees work.
+  labels: [Office]
+  relationships: [BASED_IN]
