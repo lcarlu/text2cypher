@@ -1,15 +1,21 @@
+# Full stack:      docker compose up --build        → chatbot on http://localhost:8501
+# Neo4j only:      docker compose up -d neo4j       (to run backend / frontend locally with uv)
 name: text2cypher
+
+x-llm-env: &llm-env
+  # Inside the containers Neo4j is reached by service name, Ollama on the host
+  NEO4J_URI: neo4j://neo4j:7687
+  OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
 
 services:
   neo4j:
     # Neo4j 2025+ (vector indexes, Cypher 25). APOC is used for sampled schema introspection.
-    image: neo4j:latest
-    container_name: text2cypher-neo4j
+    image: neo4j:2026.10.1
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-password123}
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
-      # Sized for a 4GB Docker VM; raise them for the full dataset if you can (e.g. 2G / 2G)
+      # Sized for a 4GB Docker VM; raise them if you can (e.g. 2G / 2G)
       NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP:-1G}
       NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP:-1G}
       NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-1G}
@@ -28,6 +34,67 @@ services:
       timeout: 5s
       retries: 30
 
+  # One-shot: loads the HR dummy data and the semantic layer on the first run, no-op afterwards
+  init:
+    build:
+      context: ./backend
+      additional_contexts:
+        certs: ./certs # optional corporate CA certificates
+    image: text2cypher-backend
+    command: ["text2cypher-load", "--if-empty", "--size", "${DATASET_SIZE:-full}"]
+    env_file:
+      - path: .env
+        required: false
+    environment: *llm-env
+    volumes:
+      - dataset_cache:/app/data/cache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      additional_contexts:
+        certs: ./certs # optional corporate CA certificates
+    image: text2cypher-backend
+    env_file:
+      - path: .env
+        required: false
+    environment: *llm-env
+    ports:
+      - "${API_PORT:-8000}:8000" # API docs: http://localhost:8000/docs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ./frontend
+      additional_contexts:
+        certs: ./certs # optional corporate CA certificates
+    image: text2cypher-frontend
+    environment:
+      API_BASE: http://api:8000
+    ports:
+      - "${UI_PORT:-8501}:8501" # Chatbot: http://localhost:8501
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   neo4j_data:
   neo4j_plugins:
+  dataset_cache:
