@@ -1,0 +1,108 @@
+# Business descriptions merged with the introspected schema (labels / relationships / properties found in the graph).
+# Only what exists in the graph is used: describe your own knowledge graph here.
+# A property is either a description string, or {description, values} to force the list of allowed values.
+
+notes:
+  - "Historised relationships (WORKS_IN, MANAGES, HAS_TITLE) and Salary nodes have fromDate / toDate. The current one has toDate = date('9999-01-01'), also exposed as isCurrent = true."
+  - "Former employees have no current WORKS_IN relationship (all their WORKS_IN have isCurrent = false)."
+  - "Use the fulltext index employee_names to look up employees by approximate name: CALL db.index.fulltext.queryNodes('employee_names', 'georgi~') YIELD node, score."
+  - "Dates are Cypher DATE values: compare with date('1990-01-01'), use duration.between(a, b).years for ages and seniority."
+
+nodes:
+  Employee:
+    description: A person currently or previously hired by the company.
+    properties:
+      id: Unique employee number
+      firstName: First name
+      lastName: Last name
+      gender:
+        description: Gender of the employee
+        values: ["F", "M"]
+      birthDate: Date of birth
+      hireDate: Date the employee joined the company
+      email: Professional email address (first.last@semantictech.com)
+  Department:
+    description: A functional unit of the company.
+    properties:
+      id: Department code such as 'd005'
+      name: Department name
+  Title:
+    description: Job title (job function / role) an employee can hold.
+    properties:
+      name: Title name
+  Salary:
+    description: Yearly base salary of an employee for a period of time (historised, 2.8M nodes on the full dataset).
+    properties:
+      amount: Yearly gross base salary amount in dollars
+      fromDate: Start of the period
+      toDate: End of the period, 9999-01-01 when current
+      isCurrent: True for the salary currently paid
+  SurveyResponse:
+    description: Answer of an employee to the HR satisfaction survey (scores from 1 = very unsatisfied to 5 = very satisfied).
+    properties:
+      recruitmentScore: Satisfaction with the recruitment process (1-5)
+      benefitsScore: Satisfaction with benefits (health insurance, retirement, perks) (1-5)
+      communicationScore: Satisfaction with internal communication (1-5)
+      supportScore: Satisfaction with HR support (1-5)
+      developmentScore: Satisfaction with career development and training (1-5)
+      payrollScore: Satisfaction with payroll and compensation (1-5)
+      topStrength: Free text on what works well
+      improvementArea: Free text on what should improve
+      submittedAt: Date and time the survey was submitted
+  Candidate:
+    description: An external person applying to a job requisition (not an employee).
+  JobRequisition:
+    description: An open or closed job position the company is recruiting for.
+    properties:
+      status: open or closed
+      openedAt: Date the position was opened
+      closedAt: Date the position was closed (null when open)
+  Skill:
+    description: A professional skill (programming language, business, language...) held by employees.
+    properties:
+      category: Skill family such as Programming, Data, Cloud, Business, People, Quality, Language
+  Project:
+    description: An internal project owned by a department, staffed with employees.
+    properties:
+      status: completed, active, on_hold or cancelled
+      budget: Project budget in dollars
+      endDate: Planned or actual end date (null when active)
+  Office:
+    description: A physical office location of the company.
+    properties:
+      code: Office code such as PAR, MIL
+      location: Geographic point (WGS-84 longitude / latitude); use point.distance(a.location, b.location) in meters
+
+relationships:
+  WORKS_IN:
+    description: Assignment of an employee to a department over a period (historised).
+  MANAGES:
+    description: An employee managing a department over a period (historised).
+  HAS_TITLE:
+    description: Job title held by an employee over a period (historised).
+  HAS_SALARY:
+    description: Links an employee to each of their salary periods.
+  REPORTS_TO:
+    description: Current reporting line, from an employee to the current manager of their current department.
+  ANSWERED:
+    description: Employee who answered a satisfaction survey.
+  APPLIED_TO:
+    description: Application of a candidate to a job requisition.
+    properties:
+      status: Application stage
+      appliedAt: Date of the application
+  OPENED_IN:
+    description: Department in which a job requisition is opened.
+  HAS_SKILL:
+    description: Skill held by an employee.
+    properties:
+      level: Proficiency level from 1 (beginner) to 5 (expert)
+  WORKS_ON:
+    description: Staffing of an employee on a project.
+    properties:
+      role: Contributor, Lead or Reviewer
+      allocation: Share of working time on the project (0.2 = 20%)
+  OWNED_BY:
+    description: Department owning a project.
+  BASED_IN:
+    description: Office where the employee works.
