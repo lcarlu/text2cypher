@@ -3,8 +3,9 @@
 name: text2cypher
 
 x-llm-env: &llm-env
-  # Inside the containers Neo4j is reached by service name, Ollama on the host
-  NEO4J_URI: neo4j://neo4j:7687
+  # Inside the containers Neo4j is reached by service name (COMPOSE_NEO4J_URI for an external database),
+  # Ollama on the host
+  NEO4J_URI: ${COMPOSE_NEO4J_URI:-neo4j://neo4j:7687}
   OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
 
 services:

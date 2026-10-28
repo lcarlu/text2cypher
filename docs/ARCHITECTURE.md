@@ -222,6 +222,22 @@ Modèle de la couche sémantique :
 
 Ces labels sont exclus de l'introspection présentée à l'agent (`SCHEMA_EXCLUDED_LABELS`).
 
+### Avec Docker
+
+```
+docker compose up --build
+   │
+   ├─ neo4j   démarre (healthcheck)
+   ├─ init    text2cypher-load --if-empty --size $DATASET_SIZE
+   │            base vide         → téléchargement (release data-v1, sinon h8 à un commit figé, SHA-256 vérifié),
+   │                                chargement, couche sémantique
+   │            base déjà chargée → rien, sauf construire la couche sémantique si elle manque
+   ├─ api     démarre quand init s'est terminé avec succès
+   └─ ui      démarre quand l'API répond sur /health
+```
+
+Le dump téléchargé est conservé dans le volume `dataset_cache` et les données dans le volume `neo4j_data`.
+
 Au **démarrage de l'API**, le schéma est introspecté une fois puis mis en **cache** (`SchemaCache`), ce qui prend
 environ 2 s sur 3,5M de nœuds. `POST /schema/refresh` le recalcule.
 
